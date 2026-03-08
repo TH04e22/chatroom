@@ -10,12 +10,18 @@ import (
 	"time"
 )
 
+var hub *Hub = NewHub()
+
 func sayHello(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Hello World！")
 }
 
 func main() {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Websocket Request\n")
+		serveWs(hub, w, r)
+	})
 	mux.HandleFunc("/", sayHello)
 
 	srv := &http.Server{
@@ -44,13 +50,14 @@ func main() {
 			return
 		}
 
+		hub.close <- struct{}{}
+
 		log.Printf("http server will shutdown after 5 seconds\n")
 		<-ctx.Done()
 		log.Printf("http server shutdown successfully\n")
 	}()
 
 	srv.Addr = ":8080"
-	srv.Handler = http.HandlerFunc(sayHello)
 	log.Printf("http server start at %s\n", srv.Addr)
 	err := srv.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
