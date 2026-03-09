@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"sync/atomic"
 )
 
@@ -28,7 +29,7 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			var num int = int(h.userCnt.Load())
-			s := fmt.Sprintf("GUEST %d", num)
+			s := fmt.Sprintf("%s%d", GetRandomName(0), num)
 			log.Printf("%s join...", s)
 			client.name = s
 			client.hub = h
@@ -37,8 +38,8 @@ func (h *Hub) Run() {
 			log.Printf("a new client connected, current user count: %d\n", h.userCnt.Load())
 
 			payload, err := json.Marshal(Payload{
-				User:    "system",
-				Message: "name:" + s,
+				User:    "system_name",
+				Message: client.name,
 			})
 
 			if err != nil {
@@ -48,16 +49,21 @@ func (h *Hub) Run() {
 
 			client.send <- payload
 
-			info := fmt.Sprintf("GUEST %d join the channel", num)
 			payload, err = json.Marshal(Payload{
-				User:    "system",
-				Message: info,
+				User:    "system_join",
+				Message: client.name,
+			})
+
+			h.broadcast <- payload
+
+			payload, err = json.Marshal(Payload{
+				User:    "system_count",
+				Message: strconv.Itoa(num),
 			})
 
 			h.broadcast <- payload
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
-				s := client.name
 				err := client.conn.Close()
 				if err != nil {
 					log.Printf("error closing client connection: %v\n", err)
@@ -66,10 +72,10 @@ func (h *Hub) Run() {
 				delete(h.clients, client)
 				h.userCnt.Add(-1)
 				log.Printf("a client disconnected, current user count: %d\n", h.userCnt.Load())
-
-				info := fmt.Sprintf("%s leave the channel", s)
+				num := int(h.userCnt.Load())
+				info := fmt.Sprintf("{guest_name: \"%s\", count: %d}", client.name, num)
 				payload, err := json.Marshal(Payload{
-					User:    "system",
+					User:    "system_leave",
 					Message: info,
 				})
 
