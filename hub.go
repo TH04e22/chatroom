@@ -28,14 +28,15 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.register:
+			h.clients[client] = true
+			h.userCnt.Add(1)
+			log.Printf("a new client connected, current user count: %d\n", h.userCnt.Load())
+
 			var num int = int(h.userCnt.Load())
 			s := fmt.Sprintf("%s%d", GetRandomName(0), num)
 			log.Printf("%s join...", s)
 			client.name = s
 			client.hub = h
-			h.clients[client] = true
-			h.userCnt.Add(1)
-			log.Printf("a new client connected, current user count: %d\n", h.userCnt.Load())
 
 			payload, err := json.Marshal(Payload{
 				User:    "system_name",
@@ -73,10 +74,17 @@ func (h *Hub) Run() {
 				h.userCnt.Add(-1)
 				log.Printf("a client disconnected, current user count: %d\n", h.userCnt.Load())
 				num := int(h.userCnt.Load())
-				info := fmt.Sprintf("{guest_name: \"%s\", count: %d}", client.name, num)
+
 				payload, err := json.Marshal(Payload{
 					User:    "system_leave",
-					Message: info,
+					Message: client.name,
+				})
+
+				h.broadcast <- payload
+
+				payload, err = json.Marshal(Payload{
+					User:    "system_count",
+					Message: strconv.Itoa(num),
 				})
 
 				h.broadcast <- payload

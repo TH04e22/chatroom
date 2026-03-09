@@ -183,7 +183,7 @@
             75% { transform: translateX(0%); }
             100% { transform: translateX(0%); }
         }
-
+        
         .message.author {
             border-left-color: var(--neon-pink);
             background: rgba(255, 0, 255, 0.05);
@@ -333,6 +333,136 @@
             border-top: none;
         }
     </style>
+    <script>
+        let sendButton;
+        let inputArea;
+        let userCount;
+        let userNameBar;
+        let chatContent;
+        let ws;
+        let username = "";
+        
+
+        document.addEventListener('DOMContentLoaded', (event) => {
+            sendButton = document.getElementsByClassName('send-btn')[0];
+            inputArea = document.querySelector('div.input-wrapper input');
+            userCount = document.querySelector("div.online-count span+span");
+            userNameBar = document.querySelector("div.chat-header h2");
+            chatContent = document.getElementById("chat-content");
+
+            sendButton.addEventListener('click', function(){
+                message = inputArea.value;
+                inputArea.value = "";
+                ws.send(message);
+            });
+
+
+            let ws = new WebSocket('ws://localhost:8080/ws')
+
+            //開啟後執行的動作，指定一個 function 會在連結 WebSocket 後執行
+            ws.onopen = () => {
+                console.log('connect to websocket success')
+            }
+
+            ws.onmessage = (event) => {
+                payload = JSON.parse(event.data);
+
+                console.log(payload);
+
+                switch (payload["user"]) {
+                    case 'system_count': {
+                        userCount.textContent = payload["message"] + " USERS ONLINE";
+                        break;
+                    }
+                    case 'system_join': {
+                        let elem = getSystemMessage("join", payload["message"]);
+                        chatContent.appendChild(elem);
+                        break;
+                    }
+                    case 'system_name': {
+                        username = payload["message"];
+                        userNameBar.textContent = "USERNAME: " + username; 
+                        break;
+                    }
+                    case 'system_leave': {
+                        let elem = getSystemMessage("leave", payload["message"]);
+                        chatContent.appendChild(elem);
+                        break;
+                    }
+                    default: {
+                        let elem;
+                        if (username === payload["user"]) {
+                            elem = getAuthorMessage(payload["message"]);
+                        } else {
+                            elem = getUserMessage(payload["user"],payload["message"]);
+                        }
+                        chatContent.appendChild(elem)
+                        break;
+                    }
+                }
+            }
+
+            //關閉後執行的動作，指定一個 function 會在連結中斷後執行
+            ws.onclose = () => {
+                console.log('server close connection')
+            }
+        });
+
+        function getSystemMessage(type, message) {
+            let elem = document.createElement('div');
+            elem.setAttribute("class", "system-message");
+            
+            if (type == "join") {
+                elem.textContent = `System // ${message} joined the channel`;
+            } else if (type == "leave") {
+                elem.textContent = `System // ${message} left the channel`;
+            }
+
+            return elem;
+        }
+
+        function getUserMessage(username, message) {
+            let elem = document.createElement('div');
+            elem.setAttribute("class", "message")
+
+            let template = `
+            <div class="username">
+                ${username}
+                <span class="timestamp">${getTimeString()}</span>
+            </div>
+            <div class="content">${message}</div>
+            `;
+
+            elem.innerHTML= template;
+            return elem;
+        }
+
+        function getAuthorMessage(message) {
+            let elem = document.createElement('div');
+            elem.setAttribute("class", "message author")
+
+            let template = `
+            <div class="username">
+                You
+                <span class="timestamp">${getTimeString()}</span>
+            </div>
+            <div class="content">${message}</div>
+            `;
+
+            elem.innerHTML= template;
+            return elem;
+        }
+
+        function getTimeString() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const time = `${hours}:${minutes}:${seconds}`;
+
+            return time;
+        }
+    </script>
 </head>
 <body>
     <div class="corner-bracket top-right"></div>
@@ -342,58 +472,16 @@
         <div class="status-bar">
             <div class="online-count">
                 <span class="online-dot"></span>
-                <span>247 USERS ONLINE</span>
+                <span>0 USERS ONLINE</span>
             </div>
         </div>
 
         <main class="chat-area">
             <div class="chat-header">
-                <h2>USER NAME: GUEST 01</h2>
+                <h2>USER NAME: GUEST</h2>
             </div>
 
-            <div class="messages">
-                <div class="system-message">System // User joined the channel</div>
-
-                <div class="message">
-                    <div class="username">
-                        CyberPunk_2077
-                    </div>
-                    <div class="content">Hey everyone! Just finished patching my neural interface. Anyone tried the new chrome mods?</div>
-                </div>
-
-                <div class="message">
-                    <div class="username">
-                        NeonDreamer
-                        <span class="timestamp">23:48:33</span>
-                    </div>
-                    <div class="content">Yeah! The reflex boosters are insane. But be careful, had a friend brick his CNS from a bad batch</div>
-                </div>
-
-                <div class="message author">
-                    <div class="username">
-                        You
-                        <span class="timestamp">23:49:01</span>
-                    </div>
-                    <div class="content">This place is wild. Love the aesthetic. What's the scene like around here?</div>
-                </div>
-
-                <div class="message">
-                    <div class="username">
-                        ChromeKnight
-                        <span class="timestamp">23:50:15</span>
-                    </div>
-                    <div class="content">Welcome to the underground choom. We're mostly chill here. Just don't talk about the corps</div>
-                </div>
-
-                <div class="system-message">System // DataGhost is now online</div>
-
-                <div class="message">
-                    <div class="username">
-                        DataGhost
-                        <span class="timestamp">23:51:42</span>
-                    </div>
-                    <div class="content">Just intercepted some interesting traffic on the corporate frequencies... nothing important</div>
-                </div>
+            <div id="chat-content" class="messages">
             </div>
 
             <div class="input-area">
