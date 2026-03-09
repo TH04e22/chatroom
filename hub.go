@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync/atomic"
@@ -34,8 +35,29 @@ func (h *Hub) Run() {
 			h.clients[client] = true
 			h.userCnt.Add(1)
 			log.Printf("a new client connected, current user count: %d\n", h.userCnt.Load())
+
+			payload, err := json.Marshal(Payload{
+				User:    "system",
+				Message: "name:" + s,
+			})
+
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			client.send <- payload
+
+			info := fmt.Sprintf("GUEST %d join the channel", num)
+			payload, err = json.Marshal(Payload{
+				User:    "system",
+				Message: info,
+			})
+
+			h.broadcast <- payload
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
+				s := client.name
 				err := client.conn.Close()
 				if err != nil {
 					log.Printf("error closing client connection: %v\n", err)
@@ -44,6 +66,14 @@ func (h *Hub) Run() {
 				delete(h.clients, client)
 				h.userCnt.Add(-1)
 				log.Printf("a client disconnected, current user count: %d\n", h.userCnt.Load())
+
+				info := fmt.Sprintf("%s leave the channel", s)
+				payload, err := json.Marshal(Payload{
+					User:    "system",
+					Message: info,
+				})
+
+				h.broadcast <- payload
 			}
 		case message := <-h.broadcast:
 			for client := range h.clients {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -12,17 +11,13 @@ import (
 
 var hub *Hub = NewHub()
 
-func sayHello(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Hello World！")
-}
-
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Websocket Request\n")
 		serveWs(hub, w, r)
 	})
-	mux.HandleFunc("/", sayHello)
+	mux.Handle("/", http.FileServer(http.Dir("./assets")))
 
 	srv := &http.Server{
 		Addr:           ":8080",
