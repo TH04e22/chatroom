@@ -76,7 +76,7 @@
             max-width: 900px;
             margin: 0 auto;
             padding: 20px;
-            min-height: 100vh;
+            height: 100vh;
             display: flex;
             flex-direction: column;
         }
@@ -125,6 +125,7 @@
 
         .chat-area {
             flex: 1;
+            min-height: 0;
             display: flex;
             flex-direction: column;
             background: var(--panel-bg);
@@ -153,6 +154,7 @@
 
         .messages {
             flex: 1;
+            min-height: 0;
             overflow-y: auto;
             padding: 20px;
             display: flex;
@@ -341,6 +343,7 @@
         let chatContent;
         let ws;
         let username = "";
+        const maxContentSize = 30;
         
 
         document.addEventListener('DOMContentLoaded', (event) => {
@@ -356,6 +359,12 @@
                 ws.send(message);
             });
 
+            inputArea.addEventListener("keypress", function(event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    sendButton.click();
+                }
+            });
 
             let ws = new WebSocket('ws://localhost:8080/ws')
 
@@ -377,6 +386,7 @@
                     case 'system_join': {
                         let elem = getSystemMessage("join", payload["message"]);
                         chatContent.appendChild(elem);
+                        chatContent.scrollTop = chatContent.scrollHeight;
                         break;
                     }
                     case 'system_name': {
@@ -387,6 +397,7 @@
                     case 'system_leave': {
                         let elem = getSystemMessage("leave", payload["message"]);
                         chatContent.appendChild(elem);
+                        chatContent.scrollTop = chatContent.scrollHeight;
                         break;
                     }
                     default: {
@@ -396,9 +407,16 @@
                         } else {
                             elem = getUserMessage(payload["user"],payload["message"]);
                         }
-                        chatContent.appendChild(elem)
+                        chatContent.appendChild(elem);
+
+                        chatContent.scrollTop = chatContent.scrollHeight;
+
                         break;
                     }
+                }
+
+                if (chatContent.childNodes.length > maxContentSize) {
+                    chatContent.removeChild(chatContent.childNodes[0])
                 }
             }
 

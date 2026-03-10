@@ -72,7 +72,7 @@ func (h *Hub) Run() {
 
 				delete(h.clients, client)
 				h.userCnt.Add(-1)
-				log.Printf("a client disconnected, current user count: %d\n", h.userCnt.Load())
+				log.Printf("%s disconnected, current user count: %d\n", client.name, h.userCnt.Load())
 				num := int(h.userCnt.Load())
 
 				payload, err := json.Marshal(Payload{
