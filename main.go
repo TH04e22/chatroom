@@ -14,7 +14,6 @@ var hub *Hub = NewHub()
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Websocket Request\n")
 		serveWs(hub, w, r)
 	})
 	mux.Handle("/", http.FileServer(http.Dir("./assets")))
